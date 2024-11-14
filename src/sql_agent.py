@@ -25,12 +25,8 @@ class SQLAgent:
 
     
     def run(self, user_input: str):
-        events = self.graph.stream(
+        return self.graph.stream(
             {"messages": [("user", user_input)]},
             stream_mode="values",
             config=self.config
         )
-        for event in events:
-            event["messages"][-1].pretty_print()
-            
-        return event["messages"][-1].content

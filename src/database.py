@@ -12,16 +12,15 @@ class Database:
         df.to_sql(table_name, self.engine, index=True, if_exists='replace')
     
     def read(self, path: str):
-        filename = path.name
-        if filename.endswith('.csv'):
+        if path.endswith('.csv'):
             df = pd.read_csv(path)
-        elif filename.endswith('.xlsx') or filename.endswith('.xls'):
+        elif path.endswith('.xlsx') or path.endswith('.xls'):
             df = pd.read_excel(path)
-        elif filename.endswith('.parquet'):
+        elif path.endswith('.parquet'):
             df = pd.read_parquet(path)
         else:
             raise ValueError("Unsupported file format")
-        table_name = filename.split('.')[0]
+        table_name = path.split('/')[-1].split('.')[0]
         self.dataframe_to_table(df, table_name)
         
     def get_sql_database(self, ):

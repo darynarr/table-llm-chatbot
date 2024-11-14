@@ -1,46 +1,51 @@
 from dotenv import load_dotenv
-import streamlit as st
+import chainlit as cl
 import atexit
 
 from src import Database, SQLAgent
 
-def main():
-    load_dotenv()
+load_dotenv()
+database = Database()
+agent = SQLAgent(database.get_sql_database())
 
-    st.set_page_config(page_title="Ask your table")
-    st.header("Ask your table 📈")
-    database = Database()
-    
-    # Register the drop_database function to be called on exit
-    atexit.register(database.drop_database)
 
-    uploaded_files = st.file_uploader(
-        "Upload files", 
-        type=["csv", "xlsx", "xls", "parquet"], 
-        accept_multiple_files=True)
+@cl.on_chat_start
+async def start():
+    files = None
 
-    if len(uploaded_files):
-        for uploaded_file in uploaded_files:
-            database.read(uploaded_file)
+    # Wait for the user to upload a file
+    while files == None:
+        files = await cl.AskFileMessage(
+            content="Please upload a CSV, Excel, or Parquet file to begin!",
+            accept={
+                "text/csv": [".csv"],
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+                "application/vnd.ms-excel": [".xls"],
+                "application/octet-stream": [".parquet"]
+            },
+            max_size_mb=500,  
+            max_files=10
+        ).send()
+
+        for file in files:
+            msg = cl.Message(content=f"Processing `{file.name}`...")
+            await msg.send()
+            database.read(file.path)
+        
+@cl.on_message
+async def on_message(message):
+    async with cl.Step(name="gpt4", type="llm") as step:
+        step.input = message.content
+
+        events = agent.run(message.content)
+        for event in events:
+            await step.stream_token(event["messages"][-1].content)
             
-        agent = SQLAgent(database.get_sql_database())
-        if 'messages' not in st.session_state:
-            st.session_state.messages = []
-
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        if user_question := st.chat_input("Ask a question about your table: "):
-            st.session_state.messages.append({"role": "user", "content": user_question})
-            with st.chat_message("user"):
-                st.markdown(user_question)
-
-            with st.spinner(text="In progress..."):
-                response = agent.run(user_question)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                with st.chat_message("assistant"):
-                    st.markdown(response)
-
-if __name__ == "__main__":
-    main()
+    response = event["messages"][-1].content
+    await cl.Message(
+        content=response,
+    ).send()
+    
+@cl.on_stop
+async def on_exit():
+    database.drop_database()
