@@ -24,9 +24,12 @@ class SQLAgent:
         self.config = {"configurable": {"thread_id": "1"}}
 
     
-    def run(self, user_input: str):
-        return self.graph.stream(
-            {"messages": [("user", user_input)]},
-            stream_mode="values",
+    async def stream(self, user_input: str):
+        inputs = dict(
+            input={"messages": [("user", user_input)]},
+            stream_mode="updates",
             config=self.config
         )
+        async for output in self.graph.astream(**inputs):
+            for key, value in output.items():
+                yield value["messages"][-1]

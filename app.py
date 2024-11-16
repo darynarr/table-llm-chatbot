@@ -1,6 +1,5 @@
 from dotenv import load_dotenv
 import chainlit as cl
-import atexit
 
 from src import Database, SQLAgent
 
@@ -23,29 +22,31 @@ async def start():
                 "application/vnd.ms-excel": [".xls"],
                 "application/octet-stream": [".parquet"]
             },
-            max_size_mb=500,  
+            max_size_mb=2000,  
             max_files=10
         ).send()
 
+        msg = cl.Message(content=f"Processing {len(files)} files...\n")
         for file in files:
-            msg = cl.Message(content=f"Processing `{file.name}`...")
-            await msg.send()
-            database.read(file.path)
+            await msg.stream_token(f"Loading `{file.name}`...\n")
+            await cl.make_async(database.read)(file.path, file.name)
+        await msg.stream_token(f"Completed. Ask me questions!\n")
+        await msg.update()
         
 @cl.on_message
-async def on_message(message):
-    async with cl.Step(name="gpt4", type="llm") as step:
-        step.input = message.content
-
-        events = agent.run(message.content)
-        for event in events:
-            await step.stream_token(event["messages"][-1].content)
+async def on_message(message): 
+    async with cl.Step(name="agent", language='sql') as agent_step:        
+        async for response in agent.stream(message.content):
+            await agent_step.stream_token(response.pretty_repr() + '\n')
             
-    response = event["messages"][-1].content
-    await cl.Message(
-        content=response,
-    ).send()
+    await agent_step.update()
+    await cl.Message(content=response.content).send()
+
     
 @cl.on_stop
 async def on_exit():
     database.drop_database()
+
+if __name__ == "__main__":
+    from chainlit.cli import run_chainlit
+    run_chainlit(__file__)
