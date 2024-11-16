@@ -1,5 +1,5 @@
 # table-llm-chatbot
- The agent interacts with an SQL database created from uploaded files (.csv, .xlsx, .xls, .parquet) to answer users questions on the data.
+ The agent interacts with an SQL database created from uploaded files (.csv, .xlsx, .xls, .parquet) to answer user's questions on the data.
 
 
 ### Create and activate the environment
