@@ -6,7 +6,7 @@ from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 from langchain import hub
 
 prompt_template = hub.pull("langchain-ai/sql-agent-system-prompt")
-system_message = prompt_template.format(dialect="SQLite", top_k=5)
+system_message = prompt_template.format(dialect="SQLite", top_k=10)
 
 class SQLAgent:
     def __init__(self, db: SQLDatabase):
