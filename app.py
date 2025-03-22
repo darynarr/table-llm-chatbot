@@ -46,7 +46,3 @@ async def on_message(message):
 @cl.on_stop
 async def on_exit():
     database.drop_database()
-
-if __name__ == "__main__":
-    from chainlit.cli import run_chainlit
-    run_chainlit(__file__)
